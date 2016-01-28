@@ -22,7 +22,7 @@
 #include <g3log/time.hpp>
 #include <zlib.h>
 #include <boost/filesystem.hpp>
-#include <regex>
+#include <boost/regex.hpp>
 #include <map>
 #include <vector>
 #include <ctime>
@@ -72,34 +72,44 @@ namespace {
 
 /// @return result as time from the file name
     bool getDateFromFileName(const std::string& app_name, const std::string& file_name, long& result) {
-        if (file_name.find(app_name) != std::string::npos) {
-            std::string suffix = file_name.substr(app_name.size());
-            if (suffix.empty()) {
-                //this is the main log file
-                return false;
-            }
-            using namespace std;
-            
-            regex date_regex("\\.(\\d{4}-\\d{2}-\\d{2}-\\d{2}-\\d{2}-\\d{2})\\.gz");
-            smatch date_match;
-            if (regex_match(suffix, date_match, date_regex)) {
-                if (date_match.size() == 2) {
-                    std::string date = date_match[1].str();
-                    struct tm tm;
-                    time_t t;
-                    if (strptime(date.c_str(), "%Y-%m-%d-%H-%M-%S", &tm) == NULL) {
-                        return false;
-                    }
-                    t = mktime(&tm);
-                    if (t == -1) {
-                        return false;
-                    }
-                    result = (long) t;
-                    return true;
-                }
-            }
-        } 
-        return false;
+
+	    if (file_name.find(app_name) != std::string::npos) {
+		    std::string suffix = file_name.substr(app_name.size());
+		    if (suffix.empty()) {
+			    //this is the main log file
+			    return false;
+		    }
+
+		    try{
+			    boost::regex date_regex("\\.(\\d{4}-\\d{2}-\\d{2}-\\d{2}-\\d{2}-\\d{2})\\.gz", boost::regex::ECMAScript);
+			    boost::smatch date_match;
+
+			    if (boost::regex_match(suffix, date_match, date_regex) && date_match.size() > 1) {
+
+				    if (date_match.size() == 2) {
+					    std::string date = date_match[1].str();
+
+					    struct tm tm;
+					    time_t t;
+					    if (::strptime(date.c_str(), "%Y-%m-%d-%H-%M-%S", &tm) == NULL) {
+						    return false;
+					    }
+
+					    t = ::mktime(&tm);
+					    if (t == -1) {
+						    return false;
+					    }
+
+					    result = (long) t;
+					    return true;
+				    }
+			    }
+
+		    }catch(boost::regex_error &e){
+			    return false;
+		    }
+	    } 
+	    return false;
     }
 
     /**
@@ -125,6 +135,7 @@ namespace {
        
         //delete old logs.
         int logs_to_delete = files.size() - max_log_count;
+	
         if (logs_to_delete > 0) {
 
             for (std::map<long, std::string>::iterator it = files.begin(); it != files.end(); ++it) {
@@ -362,9 +373,7 @@ bool LogRotateHelper::rotateLog() {
             fileWrite(ss.str());
             ss.clear();
             ss.str("");
-            ss << log_prefix_backup_ << ".log"
-             << ", data:" << ss.str()
-             << " count: " << max_archive_log_count_ << std::endl << std::flush;
+            ss << log_prefix_backup_ << ".log" << std::flush;
             expireArchives(log_directory_, ss.str(), max_archive_log_count_);
 
             return true;

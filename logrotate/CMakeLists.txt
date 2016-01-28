@@ -23,7 +23,7 @@ INCLUDE_DIRECTORIES(${G3_HEADER_PATH})
 
 #Find all libraries
 
-find_package(Boost COMPONENTS filesystem system REQUIRED)
+find_package(Boost COMPONENTS filesystem system regex REQUIRED)
 include_directories(${Boost_INCLUDE_DIRS})
 
 find_library(G3LOG ${G3LOG_LIBRARY_TYPE} PATHS ${G3_LIBRARY_PATH})
